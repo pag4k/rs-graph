@@ -1,50 +1,47 @@
 use std::result::Result;
 
 mod vertex;
-use vertex::*;
+use vertex::{Vertex};
 mod edge;
-use edge::*;
+use edge::{Edge};
 
+#[derive(Default)]
 pub struct Graph<T> {
     vertices: Vec<Vertex<T>>,
     edges: Vec<Edge>,
 }
 
-//ADD GET EVERYWHERE FOR THE CASE WHERE THE INDEX DOES NOT EXIST?
-
 impl<T> Graph<T> {
-
-    fn new() -> Self {
-        Graph {
-            vertices: vec!(),
-            edges: vec!(),
+    pub fn end_vertices(&self, edge_index:usize) -> Option<(usize, usize)> {
+        match self.edges.get(edge_index) {
+            Some(edge) => Some((edge.head, edge.tail)),
+            None => None,
         }
     }
 
-    fn end_vertices(&self, edge_index:usize) -> (usize, usize) {
-        (self.edges[edge_index].head, self.edges[edge_index].tail)
-    }
-
-    fn opposite(&self, vertex_index:usize, edge_index:usize) -> Result<usize, String> {
-        let (head, tail) = self.end_vertices(edge_index);
-        if vertex_index == head { Ok(tail) }
-        else if vertex_index == tail { Ok(head) }
-        else { Err(format!("Edge {} is not incident on vertex {}.", edge_index, vertex_index)) }
+    pub fn opposite(&self, vertex_index:usize, edge_index:usize) -> Option<usize> {
+        let (head, tail) = match self.end_vertices(edge_index) {
+            Some((a, b)) => (a, b),
+            None => return None,
+        };
+        if vertex_index == head { Some(tail) }
+        else if vertex_index == tail { Some(head) }
+        else { None }
     }
 
     fn are_adjacent(&self, vertex_index1:usize, vertex_index2:usize) -> bool {
-        let (smallest_incident_eges_list_index, other_index) =
-            if self.vertices[vertex_index1].incident_edges.len() <= self.vertices[vertex_index2].incident_edges.len()
-                { (vertex_index1, vertex_index2) }
-            else
-                { (vertex_index2, vertex_index1) };
+        let (smallest_incident_eges_list_index, other_index) = match (self.vertices.get(vertex_index1), self.vertices.get(vertex_index2)) {
+            (Some(a), Some(b)) =>   if a.incident_edges.len() <= b.incident_edges.len()
+                                            { (vertex_index1,vertex_index2) }
+                                    else    { (vertex_index2,vertex_index1) },
+            _ => return false,
+        };
         self.vertices[smallest_incident_eges_list_index].incident_edges
             .iter()
-            .any(|&incident_edge| self.opposite(vertex_index1, incident_edge) == Ok(other_index))
+            .any(|&incident_edge| self.opposite(vertex_index1, incident_edge) == Some(other_index))
     }
 
     fn replace(&mut self, vertex_index:usize, element:T) {
-        //TODO: CLONE THE ELEMENT?
         self.vertices[vertex_index].element = element;
     }
 
@@ -53,7 +50,7 @@ impl<T> Graph<T> {
         self.vertices.push(Vertex {
             index: next_index,
             element: element,
-            incident_edges: vec![]
+            incident_edges: vec!()
         });
         next_index
     }
@@ -61,7 +58,6 @@ impl<T> Graph<T> {
     pub fn insert_edge(&mut self, head_index:usize, tail_index:usize) -> Result<usize, String> {
         let next_index = self.edges.len();
         if self.vertices.get(head_index).is_none() || self.vertices.get(tail_index).is_none() {
-            //FIXME: FOR SOME REASON, IT WON'T LET ME REMOVE THE RETURN.
             return Err(format!("Cound not insert edge since either node {} or node {} does not exist.", head_index, tail_index));
         }
         self.edges.push(Edge {
@@ -78,29 +74,46 @@ impl<T> Graph<T> {
 
     //fn remove_edge(&mut self, edge_index:usize) {}
 
-    fn vertices(&self) -> &Vec<Vertex<T>> {
+    pub fn get_element(&self, vertex_index:usize) -> Option<&T> {
+        match self.vertices.get(vertex_index) {
+            Some(vertex) => Some(&vertex.element),
+            None => None,
+        }
+    }
+
+    pub fn vertices(&self) -> &Vec<Vertex<T>> {
         &self.vertices
     }
 
-    fn edges(&self) -> &Vec<Edge> {
+    pub fn edges(&self) -> &Vec<Edge> {
         &self.edges
     }
 
-    fn incident_edges(&self, vertex_index:usize) -> &Vec<usize> {
-        &self.vertices[vertex_index].incident_edges
+    pub fn incident_edges(&self, vertex_index:usize) -> Option<&Vec<usize>> {
+        match self.vertices.get(vertex_index) {
+            Some(vertex) => Some(&vertex.incident_edges),
+            None => None,
+        }
     }
 
+    pub fn outgoing_edges(&self, vertex_index:usize) -> Option<Vec<usize>> {
+        match self.vertices.get(vertex_index) {
+            Some(vertex) => Some(vertex.incident_edges.iter()
+                            .filter(|edge_index| self.edges[**edge_index].tail == vertex_index)
+                            .cloned()
+                            .collect()),
+            None => None,
+        }
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
-    
     use super::*;
 
     #[test]
-    fn test1() {
-        let mut graph: Graph<usize> = Graph::new();
+    fn test_all() {
+        let mut graph: Graph<usize> = Default::default();
         let vertex0 = graph.insert_vertex(5);
         let vertex1 = graph.insert_vertex(10);
         let vertex2 = graph.insert_vertex(15);
@@ -108,17 +121,13 @@ mod tests {
         let edge0 = graph.insert_edge(vertex0, vertex1).unwrap();
         let edge1 = graph.insert_edge(vertex0, vertex2).unwrap();
         let edge2 = graph.insert_edge(vertex1, vertex3).unwrap();
-        assert!(graph.end_vertices(edge0) == (vertex0, vertex1));
-        assert!(graph.end_vertices(edge1) != (vertex0, vertex1));
-        assert!(graph.opposite(vertex3, edge2) == Ok(vertex1));
-        assert!(graph.opposite(vertex3, edge0) == Err("Edge 0 is not incident on vertex 3.".to_string()));
+        assert!(graph.end_vertices(edge0) == Some((vertex0, vertex1)));
+        assert!(graph.end_vertices(edge1) != Some((vertex0, vertex1)));
+        assert!(graph.opposite(vertex3, edge2) == Some(vertex1));
+        assert!(graph.opposite(vertex3, edge0) == None);
         assert!(graph.are_adjacent(vertex0, vertex1));
         assert!(graph.are_adjacent(vertex1, vertex0));
         assert!(!graph.are_adjacent(vertex0, vertex0));
         assert!(!graph.are_adjacent(vertex0, vertex3));
-
-
-
-
     }
 }
