@@ -5,13 +5,19 @@ use vertex::{Vertex};
 mod edge;
 use edge::{Edge};
 
-#[derive(Default)]
 pub struct Graph<T> {
     vertices: Vec<Vertex<T>>,
     edges: Vec<Edge>,
 }
 
 impl<T> Graph<T> {
+    pub fn new() -> Self {
+        Graph {
+            vertices: vec!(),
+            edges: vec!(),
+        }
+    }
+
     pub fn end_vertices(&self, edge_index:usize) -> Option<(usize, usize)> {
         match self.edges.get(edge_index) {
             Some(edge) => Some((edge.head, edge.tail)),
@@ -113,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_all() {
-        let mut graph: Graph<usize> = Default::default();
+        let mut graph: Graph<usize> = Graph::new();
         let vertex0 = graph.insert_vertex(5);
         let vertex1 = graph.insert_vertex(10);
         let vertex2 = graph.insert_vertex(15);
