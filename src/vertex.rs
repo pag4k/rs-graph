@@ -1,4 +1,3 @@
-
 pub struct Vertex<T> {
     pub index: usize,
     pub element: T,
