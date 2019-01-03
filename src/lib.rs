@@ -12,14 +12,17 @@ pub struct Graph<V, E> {
 
 impl<V, E> Default for Graph<V, E> {
     fn default() -> Self {
+        Graph::new()
+    }
+}
+
+impl<V, E> Graph<V, E> {
+    pub fn new() -> Self {
         Graph {
             vertices: vec![],
             edges: vec![],
         }
     }
-}
-
-impl<V, E> Graph<V, E> {
     pub fn end_vertices(&self, edge_index: usize) -> Option<(usize, usize)> {
         match self.edges.get(edge_index) {
             Some(edge) => Some((edge.head, edge.tail)),
